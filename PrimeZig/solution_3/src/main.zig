@@ -4,6 +4,7 @@ const time = std.time;
 const sieves = @import("./sieves.zig");
 const IntSieve = sieves.IntSieve;
 const BitSieve = sieves.BitSieve;
+const FastSieve = sieves.FastSieve;
 const runners = @import("./runners.zig");
 const SingleThreadedRunner = runners.SingleThreadedRunner;
 const ParallelAmdahlRunner = runners.AmdahlRunner;
@@ -29,21 +30,24 @@ pub fn main() anyerror!void {
     const all = (std.os.argv.len == 2) and (std.mem.eql(u8, std.mem.spanZ(std.os.argv[1]), "--all"));
 
     comptime const AllDataTypes = .{ bool, u1, u8, u16, u32, u64, usize };
-    comptime const BitSieveDataTypes = .{ u8, u16, u32, u64 };
+//    comptime const BitSieveDataTypes = .{ u8, u16, u32, u64 };
+    comptime const BitSieveDataTypes = .{ u8 };
 
     comptime const specs = .{
-        .{ SingleThreadedRunner, IntSieve, false, false },
-        .{ ParallelAmdahlRunner, IntSieve, false, false },
-        .{ ParallelAmdahlRunner, IntSieve, true, false },
-        .{ ParallelGustafsonRunner, IntSieve, false, false },
-        .{ ParallelGustafsonRunner, IntSieve, true, false },
+        // .{ SingleThreadedRunner, IntSieve, false, false },
+        // .{ ParallelAmdahlRunner, IntSieve, false, false },
+        // .{ ParallelAmdahlRunner, IntSieve, true, false },
+        // .{ ParallelGustafsonRunner, IntSieve, false, false },
+        // .{ ParallelGustafsonRunner, IntSieve, true, false },
         .{ SingleThreadedRunner, BitSieve, false, false },
         .{ ParallelGustafsonRunner, BitSieve, false, false },
         .{ ParallelGustafsonRunner, BitSieve, true, false },
-        .{ SingleThreadedRunner, IntSieve, false, true },
-        .{ SingleThreadedRunner, BitSieve, false, true },
-        .{ ParallelGustafsonRunner, BitSieve, false, true },
-        .{ ParallelGustafsonRunner, BitSieve, true, true },
+        .{ SingleThreadedRunner, FastSieve, false, false },
+        .{ ParallelGustafsonRunner, FastSieve, false, false },
+        // .{ SingleThreadedRunner, IntSieve, false, true },
+        // .{ SingleThreadedRunner, BitSieve, false, true },
+        // .{ ParallelGustafsonRunner, BitSieve, false, true },
+        // .{ ParallelGustafsonRunner, BitSieve, true, true },
 
     };
 
@@ -74,12 +78,18 @@ pub fn main() anyerror!void {
                     }
                 }
             }
+        } else if (@TypeOf(SieveFn) == type) {
+            comptime const Runner = RunnerFn(SieveFn, runner_opts);
+            comptime const selected = selected_runs(Runner, no_ht_opt);
+            if (all or selected) {
+                try runSieveTest(Runner, run_for, allocator, wheel, 1, SIZE);
+            }
         } else {
             comptime const DataTypes = if (SieveFn == IntSieve) AllDataTypes else BitSieveDataTypes;
 
             inline for (DataTypes) |Type| {
                 comptime const typebits = if (SieveFn == IntSieve) 8 * @sizeOf(Type) else 1;
-                comptime const Sieve = SieveFn(Type, .{});
+                comptime const Sieve = if (@TypeOf(SieveFn) == type) SieveFn else SieveFn(Type, .{});
                 comptime const Runner = RunnerFn(Sieve, runner_opts);
                 comptime const selected = selected_runs(Runner, no_ht_opt);
                 if (all or selected) {
@@ -99,25 +109,26 @@ const widthstring = switch (std.builtin.target.cpu.arch.ptrBitWidth()) {
 
 fn selected_runs(comptime Runner: type, comptime no_ht_opt: bool) bool {
     const selections = .{
-        "single-sieve-bool",
-        "single-sieve-u8",
-        "parallel-amdahl-sieve-u8",
-        "parallel-gustafson-sieve-u8",
-        "parallel-amdahl-sieve-u8",
-        "parallel-gustafson-sieve-u8",
+        // "single-sieve-bool",
+        // "single-sieve-u8",
+        // "parallel-amdahl-sieve-u8",
+        // "parallel-gustafson-sieve-u8",
+        // "parallel-amdahl-sieve-u8",
+        // "parallel-gustafson-sieve-u8",
         "single-bitSieve-u8",
-        "parallel-gustafson-bitSieve-u8",
-        "parallel-gustafson-bitSieve-" ++ widthstring,
-        "single-sieve-u8-480of2310",
-        "single-sieve-u8-5760of30030",
-        "single-bitSieve-u8-480of2310",
-        "single-bitSieve-u8-5760of30030",
-        "single-bitSieve-" ++ widthstring ++ "-480of2310",
-        "single-bitSieve-" ++ widthstring ++ "-5760of30030",
-        "parallel-gustafson-bitSieve-u8-480of2310",
-        "parallel-gustafson-bitSieve-u8-5760of30030",
-        "parallel-gustafson-bitSieve-" ++ widthstring ++ "-480of2310",
-        "parallel-gustafson-bitSieve-" ++ widthstring ++ "-5760of30030",
+        "single-fastSieve",
+        // "parallel-gustafson-bitSieve-u8",
+        // "parallel-gustafson-bitSieve-" ++ widthstring,
+        // "single-sieve-u8-480of2310",
+        // "single-sieve-u8-5760of30030",
+        // "single-bitSieve-u8-480of2310",
+        // "single-bitSieve-u8-5760of30030",
+        // "single-bitSieve-" ++ widthstring ++ "-480of2310",
+        // "single-bitSieve-" ++ widthstring ++ "-5760of30030",
+        // "parallel-gustafson-bitSieve-u8-480of2310",
+        // "parallel-gustafson-bitSieve-u8-5760of30030",
+        // "parallel-gustafson-bitSieve-" ++ widthstring ++ "-480of2310",
+        // "parallel-gustafson-bitSieve-" ++ widthstring ++ "-5760of30030",
     };
     if (no_ht_opt) return false;
     for (selections) |selection| {
